@@ -1,69 +1,69 @@
-# Solmar Bay — Make GTA 6 (gta6-01)
+[![make.fun](https://make.fun/badge/gta6-01.svg)](https://make.fun/bounty/gta6-01)
+[![rank](https://make.fun/badge/gta6-01/Fadliilmi/solmar-bay-2/rank.svg)](https://make.fun/bounty/gta6-01)
+[![reward](https://make.fun/badge/gta6-01/Fadliilmi/solmar-bay-2/reward.svg)](https://make.fun/bounty/gta6-01)
 
-[![Make GTA 6](https://make.fun/badge/gta6-01.svg)](https://make.fun/bounty/gta6-01)
-[![Rank](https://make.fun/badge/gta6-01/Fadliilmi/solmar-bay-2/rank.svg)](https://make.fun/bounty/gta6-01)
-[![Reward](https://make.fun/badge/gta6-01/Fadliilmi/solmar-bay-2/reward.svg)](https://make.fun/bounty/gta6-01)
+# Solmar Bay
 
-**Solmar Bay** is an original open-world crime game in the spirit of GTA 6,
-built for the [Make GTA 6 bounty](https://make.fun/bounty/gta6-01) on
-[make.fun](https://make.fun). No Rockstar names, characters, art, music or
-maps — every street, face and song in here is original.
+An original open-world crime game in the spirit of GTA 6, built for the
+[make.fun gta6-01 bounty](https://make.fun/bounty/gta6-01).
 
-Rico Vega is back in Solmar Bay, broke and with nowhere to go but up. Tía
-Carmen has the work: six story missions, from stealing your first wheels to
-**The Solmar Score** — a daylight bank job with the whole SBPD on your tail.
-In between, steal six cars, dodge patrols at wanted levels 0–5, hunt 8 hidden
-Sun Coins ($250 each), and cruise to Radio Solmar.
-
-## The city
-
-Seven districts on one seeded road graph: Downtown, Old Town, Marina,
-Beachfront, Industrial, Suburbs and Palm Park — with a beach, a marina full
-of piers and boats, and a park with a pond. Traffic follows the streets,
-pedestrians flee gunfire, and the sun sets: after dark the windows light up,
-the streetlamps pool, and your headlights cut the road ahead.
+You are **Rico Vega**, back in Solmar Bay. Fixer **Tía Carmen** has the work:
+six story missions across seven districts, from stealing your first wheels to
+the bank job **The Solmar Score**. Steal six kinds of cars, outrun the SBPD
+through a living city of traffic and pedestrians, fight rival crews, dodge a
+0–5 star wanted level, and hunt 8 hidden Sun Coins worth $250 each.
 
 ## Play
+
+Serve `game/` with any static server (for example `node serve.ts`) and open
+http://localhost:8080 — no build step, no network at runtime, everything is a
+file under `game/`.
 
 | Key | Action |
 | --- | --- |
 | WASD / arrows | Move on foot, drive |
-| Mouse | Aim |
-| Click | Shoot / punch (drive-by shooting works too) |
-| E | Enter or exit a car, interact, hold to crack the vault |
+| Mouse + click | Aim, shoot / punch |
+| E | Enter or exit a car, interact with shops and services |
 | Q | Switch fists / pistol |
 | R | Radio Solmar on / off |
 | P / Esc | Pause |
 | Enter | Start / continue |
 
-City services: **Ammo-Nation** (ammo), **Pay 'n Spray** ($50 — clears your
-wanted level and freshens the paint), **Solmar General Hospital** (heal),
-and your **safehouse** (saves progress). Progress — cash, coins, missions —
-saves to localStorage.
+City services: **Ammo-Nation** (guns and ammo), **Pay 'n Spray** (lose the
+heat), **Solmar General Hospital** (heal up), and your **safehouse** (saves
+progress). Progress — cash, coins and missions — is saved in localStorage.
 
-## Run it
+## What is inside
 
-Static files only, no build step, no network at runtime:
-
-```sh
-node serve.ts
-# open http://localhost:8080
-```
-
-Screenshots are staged deterministically — `shots.json` maps each file to its
-`?shot=…&seed=1` scene, so every render of the same shot shows the same
-Solmar Bay.
+- A seeded city: Downtown, Old Town, Marina, Beachfront, Industrial, Suburbs
+  and Palm Park, with a beach, a marina with piers, and a park pond
+- Traffic that follows the streets, pedestrians who flee gunfire
+- Six stealable cars, each with its own speed and handling
+- SBPD patrol cars with sirens and road pursuit, foot officers who arrest
+- Six story missions with a tracker, markers and Tía Carmen briefings
+- Combat with fists and pistol against armed rival crews
+- HUD with live minimap, wanted stars, cash, health and armour, weapon and
+  ammo, mission tracker, clock and speedometer
+- Day and night cycle: headlights, lit windows, streetlight pools after dark
+- Fully synthesized WebAudio sound: engine, two-tone sirens, gunfire and an
+  original chiptune station, Radio Solmar
 
 ## Layout
 
-- `game/index.html` — the page; `game/src/` holds one job per file:
-  `random.js` (seeded RNG), `config.js` (city, cars, missions),
-  `world.js` (city generation + road graph), `input.js`, `audio.js`
-  (fully synthesized WebAudio: engine, sirens, gunfire, Radio Solmar),
-  `main.js` (game loop, police, traffic, combat, missions),
-  `render.js` (all drawing + HUD + minimap), `shots.js` (screenshot scenes).
+- `game/index.html` — the page and canvas
+- `game/src/config.js` — districts, cars, missions, coins, tuning
+- `game/src/random.js` — seeded random numbers
+- `game/src/world.js` — city generation, traffic, pedestrians, collisions
+- `game/src/input.js` — keyboard and mouse
+- `game/src/audio.js` — synthesized sound and Radio Solmar
+- `game/src/render.js` — city, cars, characters, lighting, HUD, minimap
+- `game/src/shots.js` — deterministic screenshot scenes (`?shot=…&seed=1`)
+- `game/src/main.js` — game loop, player, police, combat, missions, saves
 - `main.ts` — hands the game in: copies `game/` and `screenshots/` to
-  `/output` and writes `/output/dossier.json`.
-- `screenshots/` — 4 real renders of the game in a browser.
+  `/output` and writes `dossier.json`
 
-Built by an AI agent, recorded live, for the make.fun gta6-01 bounty.
+Everything in Solmar Bay — the city, characters, vehicles, names, story, art,
+sounds and music — is original. Nothing is taken from Rockstar Games or any
+other commercial game.
+
+MIT licensed. Built by an AI agent for Fadli Ilmi (`@fadli-ilmi`).

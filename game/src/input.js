@@ -1,69 +1,140 @@
-// input.js — keyboard and mouse, kept in one place so the game loop never
-// touches a DOM event directly. Keys are tracked by their code (KeyW, E, ...)
-// and edge presses (just pressed this frame) are cleared every frame.
+// Keyboard and mouse for Solmar Bay: one small state object the game loop
+// reads each step, plus the screen position of the mouse for aiming.
 
-export function createInput(canvas) {
-  const keys = new Set();
-  const pressed = new Set();
-  const mouse = { x: 0, y: 0, down: false, clicked: false, worldX: 0, worldY: 0 };
+/** The keys the game listens to (WASD, arrows, E, Q, R, P, Esc, Enter, Space). */
+const GAME_KEYS = new Set([
+  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'KeyQ', 'KeyR', 'KeyP',
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  'Enter', 'Escape', 'Space',
+]);
 
-  function onKeyDown(e) {
-    if (e.repeat) return;
-    keys.add(e.code);
-    pressed.add(e.code);
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+export class Input {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.down = new Set();
+    this.pressed = new Set();
+    this.mouseX = 0;
+    this.mouseY = 0;
+    this.mouseDown = false;
+    this.clicked = false;
+    canvas.addEventListener('keydown', (e) => this.onKey(e, true));
+    canvas.addEventListener('keyup', (e) => this.onKey(e, false));
+    window.addEventListener('keydown', (e) => this.onKey(e, true));
+    window.addEventListener('keyup', (e) => this.onKey(e, false));
+    canvas.addEventListener('mousemove', (e) => this.onMouse(e));
+    canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+    window.addEventListener('mouseup', () => { this.mouseDown = false; });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    canvas.tabIndex = 0;
   }
-  function onKeyUp(e) {
-    keys.delete(e.code);
+
+  onKey(e, isDown) {
+    if (!GAME_KEYS.has(e.code)) return;
+    e.preventDefault();
+    if (isDown && !this.down.has(e.code)) this.pressed.add(e.code);
+    if (isDown) this.down.add(e.code);
+    else this.down.delete(e.code);
   }
-  function onMouseMove(e) {
-    const rect = canvas.getBoundingClientRect();
-    mouse.x = e.clientX - rect.left;
-    mouse.y = e.clientY - rect.top;
+
+  onMouse(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    this.mouseX = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+    this.mouseY = (e.clientY - rect.top) * (this.canvas.height / rect.height);
   }
-  function onMouseDown(e) {
+
+  onMouseDown(e) {
+    this.onMouse(e);
     if (e.button === 0) {
-      mouse.down = true;
-      mouse.clicked = true;
+      this.mouseDown = true;
+      this.clicked = true;
     }
   }
-  function onMouseUp(e) {
-    if (e.button === 0) mouse.down = false;
-  }
-  function onBlur() {
-    keys.clear();
-    mouse.down = false;
+
+  /** True while the key is held. */
+  isDown(code) { return this.down.has(code); }
+
+  /** True only on the step the key went down; call once per consumer. */
+  wasPressed(code) {
+    if (this.pressed.has(code)) { this.pressed.delete(code); return true; }
+    return false;
   }
 
-  window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', onKeyUp);
-  window.addEventListener('blur', onBlur);
-  canvas.addEventListener('mousemove', onMouseMove);
-  canvas.addEventListener('mousedown', onMouseDown);
-  window.addEventListener('mouseup', onMouseUp);
+  /** True only on the step the mouse was clicked. */
+  wasClicked() {
+    if (this.clicked) { this.clicked = false; return true; }
+    return false;
+  }
 
-  return {
-    mouse,
-    down(code) {
-      return keys.has(code);
-    },
-    // True only on the frame the key went down.
-    justPressed(code) {
-      return pressed.has(code);
-    },
-    axis() {
-      let x = 0;
-      let y = 0;
-      if (keys.has('KeyA') || keys.has('ArrowLeft')) x -= 1;
-      if (keys.has('KeyD') || keys.has('ArrowRight')) x += 1;
-      if (keys.has('KeyW') || keys.has('ArrowUp')) y -= 1;
-      if (keys.has('KeyS') || keys.has('ArrowDown')) y += 1;
-      return { x, y };
-    },
-    // Call once per frame, after the game has read the edges.
-    endFrame() {
-      pressed.clear();
-      mouse.clicked = false;
-    },
-  };
+  /** The drive axis: -1 back, +1 forward. */
+  driveAxis() {
+    let a = 0;
+    if (this.isDown('KeyW') || this.isDown('ArrowUp')) a += 1;
+    if (this.isDown('KeyS') || this.isDown('ArrowDown')) a -= 1;
+    return a;
+  }
+
+  /** The steering axis: -1 left, +1 right. */
+  steerAxis() {
+    let s = 0;
+    if (this.isDown('KeyA') || this.isDown('ArrowLeft')) s -= 1;
+    if (this.isDown('KeyD') || this.isDown('ArrowRight')) s += 1;
+    return s;
+  }
+
+  /** The walk vector, normalised, from the movement keys. */
+  walkVector() {
+    let x = 0, y = 0;
+    if (this.isDown('KeyW') || this.isDown('ArrowUp')) y -= 1;
+    if (this.isDown('KeyS') || this.isDown('ArrowDown')) y += 1;
+    if (this.isDown('KeyA') || this.isDown('ArrowLeft')) x -= 1;
+    if (this.isDown('KeyD') || this.isDown('ArrowRight')) x += 1;
+    const len = Math.hypot(x, y);
+    if (len === 0) return { x: 0, y: 0 };
+    return { x: x / len, y: y / len };
+  }
+
+  /** Clear edge-triggered state at the end of a step. */
+  endStep() { this.pressed.clear(); }
+}
+
+/**
+ * A scripted input for the screenshot scenes: the autopilot holds keys so a
+ * scene plays itself forward deterministically.
+ */
+export class ScriptedInput {
+  constructor() {
+    this.keys = new Set();
+    this.mouseX = 640;
+    this.mouseY = 360;
+    this.mouseDown = false;
+    this.clicked = false;
+  }
+  hold(...codes) { for (const c of codes) this.keys.add(c); }
+  release(...codes) { for (const c of codes) this.keys.delete(c); }
+  isDown(code) { return this.keys.has(code); }
+  wasPressed(code) { return false; }
+  wasClicked() { const c = this.clicked; this.clicked = false; return c; }
+  driveAxis() {
+    let a = 0;
+    if (this.keys.has('KeyW')) a += 1;
+    if (this.keys.has('KeyS')) a -= 1;
+    return a;
+  }
+  steerAxis() {
+    let s = 0;
+    if (this.keys.has('KeyA')) s -= 1;
+    if (this.keys.has('KeyD')) s += 1;
+    return s;
+  }
+  walkVector() {
+    let x = 0, y = 0;
+    if (this.keys.has('KeyW')) y -= 1;
+    if (this.keys.has('KeyS')) y += 1;
+    if (this.keys.has('KeyA')) x -= 1;
+    if (this.keys.has('KeyD')) x += 1;
+    const len = Math.hypot(x, y);
+    if (len === 0) return { x: 0, y: 0 };
+    return { x: x / len, y: y / len };
+  }
+  endStep() {}
 }

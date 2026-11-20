@@ -1,162 +1,101 @@
-// shots.js — deterministic staged scenes for the screenshots, one per
-// ?shot= name, always with &seed=1. Each scene puts Rico, the cars, the
-// police and the mission exactly where the shot needs them, then the normal
-// game loop takes over, so the picture is the game itself playing — never
-// a mock-up, never an edit. The same seed always stages the same scene.
+// The screenshot scenes behind ?shot=cover|street|beach|night. Each one plays
+// the real rules forward from a fresh seeded world for a fixed number of
+// steps, steered by a scripted input, so the frame is what short play really
+// looks like and the same seed always gives the same frame.
 
-import { MISSIONS, CAR_TYPES } from './config.js';
+import { STEP } from './config.js';
+import { ScriptedInput } from './input.js';
 
-function setMission(S, missionIndex, stepIndex) {
-  S.missionIndex = missionIndex;
-  S.mission = MISSIONS[missionIndex];
-  S.missionStepIndex = stepIndex;
-  S.missionStep = S.mission.steps[stepIndex];
-  S.fightLeft = S.missionStep.kind === 'fight' ? S.missionStep.count : 0;
-  S.holdT = 0;
-  S.banner = '';
-  S.bannerT = 0;
-}
-
-function findParked(S, type) {
-  return S.cars.find((c) => c.parked && (!type || c.type === type));
-}
-
-function driveCar(S, car, x, y, angle, speed) {
-  car.parked = false;
-  car.traffic = false;
-  car.x = x;
-  car.y = y;
-  car.angle = angle;
-  car.speed = speed;
-  const p = S.player;
-  p.inCar = true;
-  p.car = car;
-  p.x = x;
-  p.y = y;
-  p.angle = angle;
-  p.speed = speed;
-}
-
-function addPolice(S, x, y, angle, speed) {
-  S.cars.push({
-    x, y, angle, speed,
-    type: 'vela', color: '#1d2f4a', traffic: false, parked: false,
-    police: true, siren: true, sirenT: 0, route: [], routeIdx: 0, cruise: 520, bounceT: 0,
-  });
-}
-
-function addRival(S, x, y) {
-  S.peds.push({
-    x, y, angle: Math.PI, speed: 0,
-    color: '#8a2f2f', fleeing: false, rival: true,
-    health: 60, maxHealth: 60, weapon: 'pistol',
-    wanderT: 0, tx: x, ty: y, shootT: 0.4,
-  });
-}
-
-function snapCamera(S) {
-  S.camera.x = S.player.x;
-  S.camera.y = S.player.y;
-}
-
-export function applyShot(S, world, name, seed) {
-  const p = S.player;
-  p.health = 100;
-  p.armour = 60;
-  p.weapon = 'pistol';
-  p.ammo = 48;
-  S.coinsCollected = 3;
-  world.coins[0].taken = true;
-  world.coins[2].taken = true;
-  world.coins[4].taken = true;
-  S.missionsDone = 0;
-
-  if (name === 'cover') {
-    // A car chase through Downtown: Rico in the red Cometa GT, two SBPD
-    // patrol cars on his tail, the bank job on and four stars burning.
-    setMission(S, 5, 2);
-    S.missionsDone = 5;
-    p.cash = 2350;
-    S.hours = 15.5;
-    S.wanted = 4;
-    const gt = S.cars.find((c) => c.missionCar) || findParked(S, 'cometa');
-    driveCar(S, gt, 1050, 1200, 0, 380);
-    S.shotDrive = true;
-    addPolice(S, 850, 1194, 0, 430);
-    addPolice(S, 790, 1232, 0, 420);
-    p.angle = 0;
-  } else if (name === 'street') {
-    // Rico on foot in Downtown, first mission: a Vela Sedan waits at the
-    // curb, Tía Carmen's first job on the tracker.
-    setMission(S, 0, 0);
-    p.cash = 100;
-    S.hours = 10;
-    S.wanted = 0;
-    p.weapon = 'fists';
-    const vela = findParked(S, 'vela');
-    if (vela) {
-      // Park it on a Downtown curb, right where Rico walks.
-      vela.x = 1360;
-      vela.y = 1200;
-      vela.angle = 0;
-      p.x = 1290;
-      p.y = 1200;
-    } else {
-      p.x = 1300;
-      p.y = 1200;
-    }
-    p.inCar = false;
-    p.car = null;
-    p.angle = 0;
-  } else if (name === 'beach') {
-    // A shootout on the Beachfront sand at golden hour: Rico with his
-    // pistol, Vipers closing in, two stars and the Beach Brawl on.
-    setMission(S, 4, 0);
-    S.missionsDone = 4;
-    p.cash = 1400;
-    S.hours = 18.5;
-    S.wanted = 2;
-    p.x = 3160;
-    p.y = 900;
-    p.inCar = false;
-    p.car = null;
-    p.angle = angleTo(p.x, p.y, 3260, 860);
-    addRival(S, 3260, 860);
-    addRival(S, 3240, 980);
-    addRival(S, 3100, 820);
-    // A beachgoer fleeing the gunfire sells the chaos.
-    const ped = S.peds.find((x) => !x.rival);
-    if (ped) {
-      ped.x = 3180;
-      ped.y = 760;
-      ped.fleeing = true;
-      ped.fleeX = 3050;
-      ped.fleeY = 600;
-    }
-  } else if (name === 'night') {
-    // A night drive down to the marina: headlights on, windows lit,
-    // the parcel run's pier marker waiting at the end of the road.
-    setMission(S, 1, 1);
-    S.missionsDone = 1;
-    p.cash = 850;
-    S.hours = 22.5;
-    S.wanted = 0;
-    S.radioOn = true;
-    // East along the marina road: the water on the right, the piers ahead.
-    const vela = findParked(S, 'vela') || findParked(S);
-    driveCar(S, vela, 1200, 2100, 0, 300);
-    S.shotDrive = true;
-  } else {
-    // Unknown shot name: plain Downtown noon, no staging.
-    setMission(S, 0, 0);
-    S.hours = 12;
-    S.wanted = 0;
-    p.x = 1300;
-    p.y = 1200;
+/** Stage one named scene on a fresh world, then freeze it for the camera. */
+export function stageShot(name, game) {
+  const shot = SHOTS[name] || SHOTS.street;
+  game.resetWorld(1);
+  game.beginPlay();
+  game.shotMode = true;
+  const input = new ScriptedInput();
+  game.input = input;
+  shot.setup(game, input);
+  const steps = shot.steps || 60;
+  for (let i = 0; i < steps; i += 1) {
+    shot.drive(game, input, i);
+    game.step(STEP, input);
   }
-  snapCamera(S);
+  game.frozen = true;
+  if (typeof window !== 'undefined') window.__shotReady = true;
+  return name;
 }
 
-function angleTo(ax, ay, bx, by) {
-  return Math.atan2(by - ay, bx - ax);
-}
+/** The four scenes: what is staged, and how the autopilot drives it. */
+const SHOTS = {
+  // A car chase through Downtown: Rico in the Cometa GT, two SBPD cars on
+  // his tail, three stars, the bank job already on the tracker.
+  cover: {
+    steps: 45,
+    setup(game) {
+      game.setClockMinutes(15 * 60);
+      game.setMissionState(5, 0);
+      game.setWanted(3);
+      game.enterCar('cometa', 1600, 1250, -Math.PI / 2, 360);
+      game.addPolice(1600, 1420, -Math.PI / 2, 340);
+      game.addPolice(1600, 1540, -Math.PI / 2, 330);
+      game.clearTrafficNear(1600, 1200, 520);
+      game.clearPedsNear(1600, 1200, 520);
+      game.addTrafficNear(1600, 800, 2, -Math.PI / 2, 1600, 400);
+      game.showBriefing("TIA CARMEN: This is the one, Rico. Solmar Bay Bank. Hold the lobby — then run.");
+    },
+    drive(game, input) { input.hold('KeyW'); },
+  },
+  // Rico on foot in Downtown, first mission, Tía Carmen's briefing on screen.
+  street: {
+    steps: 24,
+    setup(game) {
+      game.setClockMinutes(10 * 60);
+      game.setMissionState(0, 0);
+      game.setWanted(0);
+      game.teleportPlayer(1248, 900, Math.PI / 2);
+      game.addParkedCar('vela', 1248, 950, Math.PI / 2);
+      game.addParkedCar('rancho', 1150, 1170, -Math.PI / 2);
+      game.showBriefing("TIA CARMEN: Rico, you're back. No wheels, no work. Take any car on the street.");
+    },
+    drive() {},
+  },
+  // A shootout on the Beachfront sand: Rico with the pistol, three Coral Kings.
+  beach: {
+    steps: 55,
+    setup(game, input) {
+      game.setClockMinutes(16 * 60 + 30);
+      game.setMissionState(2, 1);
+      game.setWanted(2);
+      game.teleportPlayer(300, 1020, 0);
+      game.givePistol(48);
+      game.spawnRival(210, 950);
+      game.spawnRival(350, 920);
+      game.spawnRival(270, 1100);
+      game.addPolice(800, 900, Math.PI, 200);
+      input.mouseX = 560;
+      input.mouseY = 300;
+      input.clicked = true;
+      game.showBriefing('TIA CARMEN: The Coral Kings think the beach is theirs. Show them it isn\'t.');
+    },
+    drive(game, input, i) {
+      if (i === 6) { input.mouseX = 700; input.mouseY = 280; input.clicked = true; }
+      // One last shot as the camera fires, so a bullet is mid-flight.
+      if (i === 50) { input.mouseX = 350; input.mouseY = 260; input.clicked = true; }
+    },
+  },
+  // A night drive to the marina: headlights on, the piers ahead, Radio Solmar.
+  night: {
+    steps: 60,
+    setup(game) {
+      game.setClockMinutes(22 * 60 + 30);
+      game.setMissionState(1, 1);
+      game.setWanted(0);
+      game.enterCar('brisa', 1100, 2000, Math.PI, 300);
+      game.clearTrafficNear(800, 2000, 560);
+      game.clearPedsNear(800, 2000, 560);
+      game.addTrafficNear(1450, 2000, 2, Math.PI, 400, 2000);
+      game.showBriefing('TIA CARMEN: A package for the Marina. Keep it smooth — the SBPD is sniffing.');
+    },
+    drive(game, input) { input.hold('KeyW'); },
+  },
+};
